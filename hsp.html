@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Hospital Management — Demo</title>
+  <style>
+    :root{
+      --bg:#f4f7fb;--card:#ffffff;--accent:#2563eb;--muted:#6b7280;--success:#16a34a;--danger:#dc2626;
+      --max-width:1100px;
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:#0f172a;display:flex;justify-content:center;padding:28px}
+    .wrap{width:100%;max-width:var(--max-width)}
+
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,#60a5fa,#7c3aed);display:flex;align-items:center;justify-content:center;color:white;font-weight:700}
+    nav{display:flex;gap:10px}
+    nav button{background:none;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+    nav button.active{background:var(--accent);color:white}
+
+    .grid{display:grid;grid-template-columns:260px 1fr;gap:18px}
+    .sidebar{background:var(--card);padding:14px;border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,0.06)}
+    .main{padding:14px}
+
+    .card{background:var(--card);padding:14px;border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,0.04);margin-bottom:14px}
+    .muted{color:var(--muted);font-size:13px}
+
+    .section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+    h2{margin:0;font-size:18px}
+
+    /* lists */
+    .list{display:flex;flex-direction:column;gap:8px}
+    .item{padding:10px;border-radius:8px;border:1px solid #eef2ff;display:flex;justify-content:space-between;align-items:center}
+
+    /* forms */
+    label{display:block;font-size:13px;margin-bottom:6px}
+    input[type=text], input[type=number], select, textarea{width:100%;padding:8px;border-radius:8px;border:1px solid #e6eefc;background:transparent}
+    .row{display:flex;gap:8px}
+    .row .col{flex:1}
+    .btn{display:inline-block;padding:8px 12px;border-radius:8px;border:none;cursor:pointer;font-weight:700}
+    .btn-primary{background:var(--accent);color:white}
+    .btn-ghost{background:transparent;border:1px solid #e6eefc}
+
+    /* small utilities */
+    .flex{display:flex;gap:8px}
+    .right{text-align:right}
+    .table{width:100%;border-collapse:collapse}
+    table td, table th{padding:8px;border-bottom:1px solid #f3f4f6}
+
+    /* responsive */
+    @media (max-width:900px){
+      .grid{grid-template-columns:1fr;}
+      .sidebar{order:2}
+      .main{order:1}
+    }
+
+    /* modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.4);display:none;align-items:center;justify-content:center}
+    .modal{background:var(--card);padding:18px;border-radius:12px;width:min(720px,95%)}
+    .modal.show{display:flex}
+
+    footer{margin-top:8px;font-size:13px;color:var(--muted);text-align:center}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo">HM</div>
+        <div>
+          <strong>Hospital Management — Demo</strong>
+          <div class="muted">Lightweight single-file prototype</div>
+        </div>
+      </div>
+      <nav id="topNav">
+        <button data-target="dashboard" class="active">Dashboard</button>
+        <button data-target="appointments">Appointments</button>
+        <button data-target="billing">Billing</button>
+        <button data-target="patients">Patients</button>
+        <button data-target="doctors">Doctors</button>
+        <button data-target="inventory">Inventory</button>
+        <button data-target="reports">Reports</button>
+      </nav>
+    </header>
+
+    <div class="grid">
+      <aside class="sidebar card">
+        <div class="section-title"><h3>Quick Actions</h3></div>
+        <div class="list">
+          <button class="btn btn-primary" id="quickNewAppt">+ New Appointment</button>
+          <button class="btn btn-ghost" id="quickNewBill">+ Create Bill</button>
+          <button class="btn btn-ghost" id="exportData">Export (JSON)</button>
+        </div>
+
+        <hr style="margin:12px 0">
+        <div class="muted">System Info</div>
+        <div style="margin-top:8px">Patients: <strong id="statPatients">0</strong></div>
+        <div>Doctors: <strong id="statDoctors">0</strong></div>
+        <div>Pending Appointments: <strong id="statPendingAppts">0</strong></div>
+      </aside>
+
+      <main class="main">
+        <!-- Dashboard -->
+        <section id="dashboard" class="card module-section">
+          <div class="section-title"><h2>Dashboard</h2><div class="muted">Overview</div></div>
+          <div class="row" style="margin-bottom:10px">
+            <div class="col card" style="flex:1"> <div class="muted">Today's appointments</div>
+              <div id="todayApptsList" class="list" style="margin-top:8px"></div>
+            </div>
+            <div class="col card" style="flex:1"> <div class="muted">Recent bills</div>
+              <div id="recentBills" class="list" style="margin-top:8px"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Appointments -->
+        <section id="appointments" class="card module-section" style="display:none">
+          <div class="section-title"><h2>Appointments</h2><div class="muted">Book, view and manage appointments</div></div>
+
+          <div style="display:flex;gap:12px;margin-bottom:12px">
+            <div style="flex:1">
+              <div class="card">
+                <div class="muted">New Appointment</div>
+                <div style="margin-top:8px">
+                  <label>Patient</label>
+                  <select id="apptPatient"></select>
+                  <label>Doctor</label>
+                  <select id="apptDoctor"></select>
+                  <div class="row" style="margin-top:8px">
+                    <div class="col"><label>Date & Time</label><input type="text" id="apptDateTime" placeholder="YYYY-MM-DD HH:MM"/></div>
+                    <div class="col"><label>Reason</label><input type="text" id="apptReason" placeholder="e.g. Fever"/></div>
+                  </div>
+                  <div style="margin-top:10px"><button class="btn btn-primary" id="saveAppt">Save Appointment</button></div>
+                </div>
+              </div>
+            </div>
+            <div style="width:360px">
+              <div class="card">
+                <div class="muted">Appointments</div>
+                <div id="apptsList" style="margin-top:8px" class="list"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Billing -->
+        <section id="billing" class="card module-section" style="display:none">
+          <div class="section-title"><h2>Billing</h2><div class="muted">Create invoices and manage payments</div></div>
+
+          <div class="card">
+            <div class="row">
+              <div class="col">
+                <label>Patient</label>
+                <select id="billPatient"></select>
+              </div>
+              <div class="col">
+                <label>Invoice #</label>
+                <input type="text" id="invoiceNo" placeholder="Auto or enter" />
+              </div>
+            </div>
+
+            <div style="margin-top:12px">
+              <table class="table" id="billItems">
+                <thead><tr><th>Service</th><th>Qty</th><th>Price</th><th class="right">Total</th><th></th></tr></thead>
+                <tbody></tbody>
+              </table>
+              <div style="margin-top:8px" class="row">
+                <div class="col"><input type="text" id="newServiceName" placeholder="Service name"/></div>
+                <div style="width:110px"><input type="number" id="newServiceQty" placeholder="Qty" min="1" value="1"/></div>
+                <div style="width:150px"><input type="number" id="newServicePrice" placeholder="Price" min="0" value="0"/></div>
+                <div><button class="btn btn-ghost" id="addBillItem">Add</button></div>
+              </div>
+
+              <div style="margin-top:12px;display:flex;justify-content:flex-end;gap:8px;align-items:center">
+                <div class="muted">Subtotal:</div><div id="billSubtotal">0</div>
+                <div class="muted">Tax (5%):</div><div id="billTax">0</div>
+                <strong>Total:</strong><div id="billTotal">0</div>
+                <button class="btn btn-primary" id="saveBill">Save & Pay</button>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:12px" class="card">
+            <div class="muted">Saved Invoices</div>
+            <div id="savedInvoices" class="list" style="margin-top:8px"></div>
+          </div>
+        </section>
+
+        <!-- Patients -->
+        <section id="patients" class="card module-section" style="display:none">
+          <div class="section-title"><h2>Patients</h2><div class="muted">Add and manage patient records</div></div>
+          <div class="card">
+            <div class="row">
+              <div class="col"><label>Name</label><input type="text" id="patName"/></div>
+              <div class="col"><label>Age</label><input type="number" id="patAge" min="0"/></div>
+              <div class="col"><label>Phone</label><input type="text" id="patPhone"/></div>
+            </div>
+            <div style="margin-top:8px"><button class="btn btn-primary" id="addPatient">Add Patient</button></div>
+          </div>
+          <div style="margin-top:12px" class="card">
+            <div class="muted">Patient List</div>
+            <table class="table" id="patientTable"><thead><tr><th>Name</th><th>Age</th><th>Phone</th><th></th></tr></thead><tbody></tbody></table>
+          </div>
+        </section>
+
+        <!-- Doctors -->
+        <section id="doctors" class="card module-section" style="display:none">
+          <div class="section-title"><h2>Doctors</h2><div class="muted">Clinic staff and specialties</div></div>
+          <div class="card">
+            <div class="row">
+              <div class="col"><label>Name</label><input type="text" id="docName"/></div>
+              <div class="col"><label>Specialty</label><input type="text" id="docSpec"/></div>
+              <div class="col"><label>Phone</label><input type="text" id="docPhone"/></div>
+            </div>
+            <div style="margin-top:8px"><button class="btn btn-primary" id="addDoctor">Add Doctor</button></div>
+          </div>
+          <div style="margin-top:12px" class="card">
+            <div class="muted">Doctor List</div>
+            <table class="table" id="doctorTable"><thead><tr><th>Name</th><th>Specialty</th><th>Phone</th><th></th></tr></thead><tbody></tbody></table>
+          </div>
+        </section>
+
+        <!-- Inventory -->
+        <section id="inventory" class="card module-section" style="display:none">
+          <div class="section-title"><h2>Inventory</h2><div class="muted">Manage medicines & consumables</div></div>
+          <div class="card">
+            <div class="row">
+              <div class="col"><label>Item</label><input type="text" id="invName"/></div>
+              <div style="width:120px"><label>Qty</label><input type="number" id="invQty" min="0" value="0"/></div>
+              <div style="width:120px"><label>Reorder at</label><input type="number" id="invReorder" min="0" value="5"/></div>
+            </div>
+            <div style="margin-top:8px"><button class="btn btn-primary" id="addInv">Add / Update Item</button></div>
+          </div>
+          <div style="margin-top:12px" class="card">
+            <div class="muted">Inventory List</div>
+            <table class="table" id="invTable"><thead><tr><th>Item</th><th>Qty</th><th>Reorder</th><th></th></tr></thead><tbody></tbody></table>
+          </div>
+        </section>
+
+        <!-- Reports -->
+        <section id="reports" class="card module-section" style="display:none">
+          <div class="section-title"><h2>Reports</h2><div class="muted">Generate quick stats</div></div>
+          <div class="card">
+            <div class="muted">Simple summary</div>
+            <div style="margin-top:8px">
+              <div>Patients: <span id="rPatients">0</span></div>
+              <div>Doctors: <span id="rDoctors">0</span></div>
+              <div>Appointments: <span id="rAppts">0</span></div>
+              <div>Inventory low: <span id="rLowInv">0</span></div>
+            </div>
+            <div style="margin-top:12px"><button class="btn btn-primary" id="genReport">Refresh</button></div>
+          </div>
+        </section>
+
+        <footer>Demo hospital management UI • Save this file as <code>hospital_management_website.html</code> and open in a browser.</footer>
+      </main>
+    </div>
+  </div>
+
+  <!-- Modal (used by multiple sections) -->
+  <div id="modalBackdrop" class="modal-backdrop">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div id="modalContent"></div>
+      <div style="margin-top:12px;text-align:right"><button id="closeModal" class="btn btn-ghost">Close</button></div>
+    </div>
+  </div>
+
+  <script>
+    /*
+      Single-file modular JS: each section's logic lives in its own IIFE.
+      This keeps "different codes" for each section while remaining a single HTML file.
+    */
+
+    // Simple data store (localStorage-backed)
+    const Store = (function(){
+      const KEY='hm_demo_v1';
+      function load(){try{return JSON.parse(localStorage.getItem(KEY))||{patients:[],doctors:[],appointments:[],invoices:[],inventory:[]}}catch(e){return {patients:[],doctors:[],appointments:[],invoices:[],inventory:[]}}}
+      function save(state){localStorage.setItem(KEY,JSON.stringify(state));}
+      let state=load();
+      return {getState:()=>state,saveState:()=>save(state),reset:()=>{state={patients:[],doctors:[],appointments:[],invoices:[],inventory:[]};save(state);},
+        addPatient(p){p.id=Date.now()+Math.random();state.patients.push(p);save(state);},
+        removePatient(id){state.patients=state.patients.filter(x=>x.id!==id);save(state);},
+        addDoctor(d){d.id=Date.now()+Math.random();state.doctors.push(d);save(state);},
+        addAppointment(a){a.id=Date.now()+Math.random();state.appointments.push(a);save(state);},
+        addInvoice(i){i.id=Date.now()+Math.random();state.invoices.push(i);save(state);},
+        upsertInventory(item){const found=state.inventory.find(x=>x.name.toLowerCase()===item.name.toLowerCase());if(found){found.qty=item.qty;found.reorder=item.reorder}else{item.id=Date.now()+Math.random();state.inventory.push(item);}save(state);},
+        removeDoctor(id){state.doctors=state.doctors.filter(x=>x.id!==id);save(state);},
+        removeInv(id){state.inventory=state.inventory.filter(x=>x.id!==id);save(state);},
+      }
+    })();
+
+    // Navigation logic (common)
+    (function Navigation(){
+      const nav=document.getElementById('topNav');
+      nav.addEventListener('click',e=>{const b=e.target.closest('button');if(!b) return; document.querySelectorAll('#topNav button').forEach(bt=>bt.classList.remove('active')); b.classList.add('active'); showSection(b.dataset.target)});
+      function showSection(id){document.querySelectorAll('.module-section').forEach(s=>s.style.display='none'); const s=document.getElementById(id); if(s) s.style.display='block';}
+      // shortcuts
+      document.getElementById('quickNewAppt').addEventListener('click',()=>{document.querySelector('button[data-target="appointments"]').click(); document.getElementById('apptReason').focus();});
+      document.getElementById('quickNewBill').addEventListener('click',()=>{document.querySelector('button[data-target="billing"]').click();});
+      document.getElementById('exportData').addEventListener('click',()=>{const a=document.createElement('a');a.href='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(Store.getState(),null,2));a.download='hm_export.json';a.click();});
+      // initial view
+      showSection('dashboard');
+    })();
+
+    // Patients module
+    (function PatientsModule(){
+      const patName=document.getElementById('patName');
+      const patAge=document.getElementById('patAge');
+      const patPhone=document.getElementById('patPhone');
+      const addBtn=document.getElementById('addPatient');
+      const tableBody=document.querySelector('#patientTable tbody');
+
+      function render(){const s=Store.getState(); tableBody.innerHTML=''; s.patients.forEach(p=>{const tr=document.createElement('tr'); tr.innerHTML=`<td>${escapeHtml(p.name)}</td><td>${p.age||''}</td><td>${escapeHtml(p.phone||'')}</td><td><button data-id="${p.id}" class="btn btn-ghost del-pat">Delete</button></td>`; tableBody.appendChild(tr);}); updateStats(); refreshPatientSelects();}
+
+      addBtn.addEventListener('click',()=>{const name=patName.value.trim(); if(!name){alert('Enter name'); return;} Store.addPatient({name,age:patAge.value,phone:patPhone.value}); patName.value=''; patAge.value=''; patPhone.value=''; render();});
+
+      tableBody.addEventListener('click',e=>{const b=e.target.closest('button.del-pat'); if(!b) return; const id=Number(b.dataset.id); if(confirm('Delete patient?')){Store.removePatient(id); render();}});
+
+      function refreshPatientSelects(){const lists=[document.getElementById('apptPatient'),document.getElementById('billPatient')]; lists.forEach(sel=>{sel.innerHTML=''; sel.appendChild(new Option('-- Select --','')); Store.getState().patients.forEach(p=>sel.appendChild(new Option(p.name,p.id))); }); document.getElementById('statPatients').textContent=Store.getState().patients.length}
+
+      render();
+      window.PatientsModule={render};
+    })();
+
+    // Doctors module
+    (function DoctorsModule(){
+      const docName=document.getElementById('docName');
+      const docSpec=document.getElementById('docSpec');
+      const docPhone=document.getElementById('docPhone');
+      const addBtn=document.getElementById('addDoctor');
+      const tableBody=document.querySelector('#doctorTable tbody');
+
+      function render(){const s=Store.getState(); tableBody.innerHTML=''; s.doctors.forEach(d=>{const tr=document.createElement('tr'); tr.innerHTML=`<td>${escapeHtml(d.name)}</td><td>${escapeHtml(d.spec)}</td><td>${escapeHtml(d.phone||'')}</td><td><button data-id="${d.id}" class="btn btn-ghost del-doc">Delete</button></td>`; tableBody.appendChild(tr);}); document.getElementById('statDoctors').textContent=s.doctors.length; refreshDoctorSelects();}
+
+      addBtn.addEventListener('click',()=>{const name=docName.value.trim(); if(!name){alert('Enter name'); return;} Store.addDoctor({name,spec:docSpec.value,phone:docPhone.value}); docName.value=''; docSpec.value=''; docPhone.value=''; render();});
+
+      tableBody.addEventListener('click',e=>{const b=e.target.closest('button.del-doc'); if(!b) return; const id=Number(b.dataset.id); if(confirm('Delete doctor?')){Store.removeDoctor(id); render();}});
+
+      function refreshDoctorSelects(){const sel=document.getElementById('apptDoctor'); sel.innerHTML=''; sel.appendChild(new Option('-- Select --','')); Store.getState().doctors.forEach(d=>sel.appendChild(new Option(d.name,d.id))); }
+
+      render();
+      window.DoctorsModule={render};
+    })();
+
+    // Appointments module
+    (function ApptModule(){
+      const apptPatient=document.getElementById('apptPatient');
+      const apptDoctor=document.getElementById('apptDoctor');
+      const apptDateTime=document.getElementById('apptDateTime');
+      const apptReason=document.getElementById('apptReason');
+      const saveBtn=document.getElementById('saveAppt');
+      const list=document.getElementById('apptsList');
+      const todayList=document.getElementById('todayApptsList');
+
+      saveBtn.addEventListener('click',()=>{const pid=apptPatient.value, did=apptDoctor.value; if(!pid||!did){alert('Select patient and doctor'); return;} Store.addAppointment({patientId:pid,doctorId:did,datetime:apptDateTime.value,reason:apptReason.value,status:'pending'}); apptDateTime.value=''; apptReason.value=''; render();});
+
+      function render(){const s=Store.getState(); list.innerHTML=''; todayList.innerHTML=''; s.appointments.slice().reverse().forEach(a=>{const p=s.patients.find(x=>x.id==a.patientId); const d=s.doctors.find(x=>x.id==a.doctorId); const el=document.createElement('div'); el.className='item'; el.innerHTML=`<div><strong>${p?escapeHtml(p.name):'Unknown'}</strong> <div class=\"muted\">${d?escapeHtml(d.name):'Unknown'} • ${escapeHtml(a.datetime||'')}</div></div><div class=\"flex\"><button data-id=\"${a.id}\" class=\"btn btn-ghost done-appt\">Mark Done</button><button data-id=\"${a.id}\" class=\"btn del-appt btn-ghost\">Delete</button></div>`; list.appendChild(el); if(a.datetime && a.datetime.includes(new Date().toISOString().slice(0,10))){todayList.appendChild(el.cloneNode(true))}});
+        document.getElementById('statPendingAppts').textContent=s.appointments.filter(a=>a.status!=='done').length; document.getElementById('rAppts').textContent=s.appointments.length;
+    }
+
+      list.addEventListener('click',e=>{const b=e.target.closest('button.done-appt'); if(b){const id=Number(b.dataset.id); const s=Store.getState(); const a=s.appointments.find(x=>x.id==id); if(a){a.status='done'; Store.saveState(); ApptModule.render();} } const d=e.target.closest('button.del-appt'); if(d){if(confirm('Delete appointment?')){const id=Number(d.dataset.id); const s=Store.getState(); s.appointments=s.appointments.filter(x=>x.id!==id); Store.saveState(); render();}}});
+
+      function refreshSelects(){/* called from others */}
+
+      render();
+      window.ApptModule={render};
+    })();
+
+    // Billing module
+    (function BillingModule(){
+      const billPatient=document.getElementById('billPatient');
+      const invoiceNo=document.getElementById('invoiceNo');
+      const tbl=document.querySelector('#billItems tbody');
+      const addService=document.getElementById('addBillItem');
+      const svcName=document.getElementById('newServiceName');
+      const svcQty=document.getElementById('newServiceQty');
+      const svcPrice=document.getElementById('newServicePrice');
+      const subtotalEl=document.getElementById('billSubtotal');
+      const taxEl=document.getElementById('billTax');
+      const totalEl=document.getElementById('billTotal');
+      const savedInvoices=document.getElementById('savedInvoices');
+      const saveBill=document.getElementById('saveBill');
+
+      let items=[];
+      function renderItems(){tbl.innerHTML=''; items.forEach((it,idx)=>{const tr=document.createElement('tr'); tr.innerHTML=`<td>${escapeHtml(it.name)}</td><td>${it.qty}</td><td>${it.price}</td><td class=\"right\">${(it.qty*it.price).toFixed(2)}</td><td><button data-i=\"${idx}\" class=\"btn btn-ghost del-item\">x</button></td>`; tbl.appendChild(tr);}); recalc();}
+      function recalc(){const sub=items.reduce((s,i)=>s+i.qty*i.price,0); const tax=sub*0.05; subtotalEl.textContent=sub.toFixed(2); taxEl.textContent=tax.toFixed(2); totalEl.textContent=(sub+tax).toFixed(2);} 
+
+      addService.addEventListener('click',()=>{const name=svcName.value.trim(); const qty=Number(svcQty.value||1); const price=Number(svcPrice.value||0); if(!name){alert('Service name');return;} items.push({name,qty,price}); svcName.value=''; svcQty.value=1; svcPrice.value=0; renderItems();});
+
+      tbl.addEventListener('click',e=>{const b=e.target.closest('button.del-item'); if(!b) return; const i=Number(b.dataset.i); items.splice(i,1); renderItems();});
+
+      saveBill.addEventListener('click',()=>{const pid=billPatient.value; if(!pid){alert('Select patient');return;} if(items.length===0){alert('Add items');return;} const invoice={patientId:pid,invoiceNo:invoiceNo.value||'INV-'+Date.now(),items,subtotal:parseFloat(subtotalEl.textContent),tax:parseFloat(taxEl.textContent),total:parseFloat(totalEl.textContent),date:new Date().toISOString()}; Store.addInvoice(invoice); items=[]; renderItems(); renderSaved(); alert('Saved invoice');});
+
+      function renderSaved(){savedInvoices.innerHTML=''; Store.getState().invoices.slice().reverse().forEach(inv=>{const p=Store.getState().patients.find(x=>x.id==inv.patientId); const el=document.createElement('div'); el.className='item'; el.innerHTML=`<div><strong>${escapeHtml(inv.invoiceNo)}</strong><div class=\"muted\">${p?escapeHtml(p.name):'Unknown'} • ${new Date(inv.date).toLocaleString()}</div></div><div><strong>${inv.total.toFixed(2)}</strong></div>`; savedInvoices.appendChild(el);});}
+
+      function render(){renderSaved(); document.getElementById('rPatients').textContent=Store.getState().patients.length}
+
+      render();
+      window.BillingModule={render};
+    })();
+
+    // Inventory module
+    (function InventoryModule(){
+      const invName=document.getElementById('invName');
+      const invQty=document.getElementById('invQty');
+      const invReorder=document.getElementById('invReorder');
+      const addInv=document.getElementById('addInv');
+      const table=document.querySelector('#invTable tbody');
+
+      addInv.addEventListener('click',()=>{const name=invName.value.trim(); if(!name){alert('Item name');return;} const qty=Number(invQty.value||0); const reorder=Number(invReorder.value||5); Store.upsertInventory({name,qty,reorder}); invName.value=''; invQty.value=0; invReorder.value=5; render();});
+
+      function render(){table.innerHTML=''; Store.getState().inventory.forEach(it=>{const tr=document.createElement('tr'); tr.innerHTML=`<td>${escapeHtml(it.name)}</td><td>${it.qty}</td><td>${it.reorder||0}</td><td><button data-id=\"${it.id}\" class=\"btn btn-ghost del-inv\">Delete</button></td>`; table.appendChild(tr);}); document.getElementById('rLowInv').textContent=Store.getState().inventory.filter(x=>x.qty<=x.reorder).length}
+
+      table.addEventListener('click',e=>{const b=e.target.closest('button.del-inv'); if(!b) return; if(confirm('Delete?')){const id=Number(b.dataset.id); Store.removeInv(id); render();}});
+
+      render();
+      window.InventoryModule={render};
+    })();
+
+    // Reports & dashboard render
+    (function ReportsModule(){
+      document.getElementById('genReport').addEventListener('click',()=>{document.getElementById('rPatients').textContent=Store.getState().patients.length; document.getElementById('rDoctors').textContent=Store.getState().doctors.length; document.getElementById('rAppts').textContent=Store.getState().appointments.length; document.getElementById('rLowInv').textContent=Store.getState().inventory.filter(x=>x.qty<=x.reorder).length;});
+      // initial update of stats
+      document.getElementById('genReport').click();
+    })();
+
+    // Modal helper
+    (function Modal(){
+      const backdrop=document.getElementById('modalBackdrop'); const content=document.getElementById('modalContent'); const close=document.getElementById('closeModal');
+      close.addEventListener('click',()=>backdrop.style.display='none');
+      window.showModal=(html)=>{content.innerHTML=html; backdrop.style.display='flex';}
+    })();
+
+    // Recent bills render and helpers
+    (function Misc(){
+      function renderRecentBills(){const el=document.getElementById('recentBills'); el.innerHTML=''; Store.getState().invoices.slice().reverse().slice(0,5).forEach(inv=>{const p=Store.getState().patients.find(x=>x.id==inv.patientId); const div=document.createElement('div'); div.className='item'; div.innerHTML=`<div><strong>${inv.invoiceNo}</strong><div class=\"muted\">${p?escapeHtml(p.name):'Unknown'}</div></div><div>${inv.total.toFixed(2)}</div>`; el.appendChild(div);});}
+      renderRecentBills();
+      // update various modules when store changes by calling their render functions
+      setInterval(()=>{try{window.PatientsModule.render(); window.DoctorsModule.render(); window.ApptModule.render(); window.BillingModule.render(); window.InventoryModule.render(); renderRecentBills();}catch(e){}},1000);
+
+      // helper escape
+      window.escapeHtml=function(str){if(!str) return ''; return String(str).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');}
+    })();
+
+  </script>
+</body>
+</html>
